@@ -239,6 +239,24 @@
           setItems([newItem, ...items]);
         };
 
+        const handleImport = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            try {
+              const data = JSON.parse(ev.target.result);
+              if (data.items) {
+                setItems(data.items);
+                alert("Import Successful!");
+              }
+            } catch (err) {
+              alert("Invalid File Format");
+            }
+          };
+          reader.readAsText(file);
+        };
+
         return (
           <div className="max-w-md mx-auto min-h-screen pb-10 vault-container">
             {/* PDF REPORT */}
@@ -595,17 +613,13 @@
                       >
                         <Icon name="upload" size={12} /> Import
                       </button>
+                      {/* FIXED FOR ANDROID IMPORT: */}
                       <input
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        onChange={(e) => {
-                          const r = new FileReader();
-                          r.onload = (ev) => {
-                            setItems(JSON.parse(ev.target.result).items || []);
-                          };
-                          r.readAsText(e.target.files[0]);
-                        }}
+                        accept=".json,application/json,*/*"
+                        onChange={handleImport}
                       />
                     </div>
                   </div>
