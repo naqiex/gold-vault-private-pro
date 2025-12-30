@@ -92,6 +92,8 @@
         const [isSyncing, setIsSyncing] = useState(false);
         const [editingId, setEditingId] = useState(null);
         const [expandedId, setExpandedId] = useState(null);
+
+        const [currency, setCurrency] = useState("MYR");
         const [currentGoldPrice, setCurrentGoldPrice] = useState(390);
         const [highestPrice, setHighestPrice] = useState(0);
         const [targetPrice, setTargetPrice] = useState(450);
@@ -112,12 +114,42 @@
           goldPriceAtPurchase: "",
         });
 
-        // Helper for 2 decimal points with commas
+        const sym = currency === "MYR" ? "RM" : "$";
         const f2 = (val) =>
           Number(val).toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           });
+
+        const handleCurrencyToggle = async (newCurrency) => {
+          if (newCurrency === currency) return;
+          setIsSyncing(true);
+          try {
+            const res = await fetch("https://open.er-api.com/v6/latest/USD");
+            const data = await res.json();
+            const myrRate = data.rates.MYR;
+            const factor = newCurrency === "MYR" ? myrRate : 1 / myrRate;
+
+            setCurrentGoldPrice((prev) => prev * factor);
+            setHighestPrice((prev) => prev * factor);
+            setTargetPrice((prev) => prev * factor);
+            setGlobalStoreOffset((prev) => prev * factor);
+
+            setItems((prevItems) =>
+              prevItems.map((item) => ({
+                ...item,
+                purchasePrice: Number(item.purchasePrice) * factor,
+                costMaking: Number(item.costMaking) * factor,
+                goldPriceAtPurchase: Number(item.goldPriceAtPurchase) * factor,
+              }))
+            );
+
+            setCurrency(newCurrency);
+          } catch (e) {
+            alert("Currency conversion failed.");
+          }
+          setIsSyncing(false);
+        };
 
         useEffect(() => {
           const interval = setInterval(() => {
@@ -133,10 +165,11 @@
         }, [lastSyncTime]);
 
         useEffect(() => {
-          const saved = localStorage.getItem("gold-vault-v55");
+          const saved = localStorage.getItem("gold-vault-v60");
           if (saved) {
             const d = JSON.parse(saved);
             setItems(d.items || []);
+            setCurrency(d.currency || "MYR");
             setCurrentGoldPrice(d.currentGoldPrice || 390);
             setHighestPrice(d.highestPrice || 0);
             setTargetPrice(d.targetPrice || 450);
@@ -151,9 +184,10 @@
 
         useEffect(() => {
           localStorage.setItem(
-            "gold-vault-v55",
+            "gold-vault-v60",
             JSON.stringify({
               items,
+              currency,
               currentGoldPrice,
               highestPrice,
               targetPrice,
@@ -167,6 +201,7 @@
           );
         }, [
           items,
+          currency,
           currentGoldPrice,
           highestPrice,
           targetPrice,
@@ -218,12 +253,14 @@
             ]);
             const gData = await gRes.json();
             const rData = await rRes.json();
-            const pricePerGramMYR =
-              (gData.items[0].xauPrice / 31.1035) * rData.rates.MYR;
-            const newPrice = Math.round(pricePerGramMYR * 100) / 100;
-            if (highestPrice === 0 || newPrice > highestPrice)
-              setHighestPrice(newPrice);
-            setCurrentGoldPrice(newPrice);
+            const pricePerGramUSD = gData.items[0].xauPrice / 31.1035;
+            const myrRate = rData.rates.MYR;
+            const newPrice =
+              currency === "MYR" ? pricePerGramUSD * myrRate : pricePerGramUSD;
+            const roundedPrice = Math.round(newPrice * 100) / 100;
+            if (highestPrice === 0 || roundedPrice > highestPrice)
+              setHighestPrice(roundedPrice);
+            setCurrentGoldPrice(roundedPrice);
             setLastSyncTime(new Date().toISOString());
           } catch (e) {
             alert("Sync failed.");
@@ -246,6 +283,7 @@
         const exportToString = () => {
           const data = JSON.stringify({
             items,
+            currency,
             currentGoldPrice,
             highestPrice,
             targetPrice,
@@ -267,6 +305,7 @@
             const decoded = JSON.parse(atob(code));
             if (decoded.items) {
               setItems(decoded.items);
+              if (decoded.currency) setCurrency(decoded.currency);
               if (decoded.currentGoldPrice)
                 setCurrentGoldPrice(decoded.currentGoldPrice);
               alert("Import Successful!");
@@ -286,14 +325,13 @@
 
         return (
           <div className="max-w-md mx-auto min-h-screen pb-10 vault-container">
-            {/* PDF REPORT */}
             <div className="print-only p-10 bg-white">
               <div className="report-header">
                 <h1 className="text-4xl font-black uppercase">
                   Gold Vault Statement
                 </h1>
                 <p className="text-sm font-bold text-slate-500 mt-2">
-                  DATE: {new Date().toLocaleString()}
+                  DATE: {new Date().toLocaleString()} ({currency})
                 </p>
               </div>
               <table className="report-table mt-8 w-full text-left">
@@ -312,7 +350,7 @@
                       <td>{item.type}</td>
                       <td>{item.weight}g</td>
                       <td>
-                        RM{" "}
+                        {sym}{" "}
                         {f2(
                           (item.type === "916"
                             ? currentGoldPrice * 0.916
@@ -325,7 +363,6 @@
               </table>
             </div>
 
-            {/* APP UI */}
             <div className="no-print">
               <div className="bg-slate-900 text-white p-5 pb-24 rounded-b-[2.5rem] shadow-lg">
                 <div className="flex justify-between items-center mb-6 text-slate-400 px-1">
@@ -349,10 +386,10 @@
                 <div className="grid grid-cols-2 gap-2 text-center">
                   <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                     <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
-                      Live 999
+                      Live 999 ({currency})
                     </label>
                     <div className="text-lg font-black tracking-tight">
-                      RM {f2(currentGoldPrice)}
+                      {sym} {f2(currentGoldPrice)}
                     </div>
                     <div
                       className={`text-[10px] font-black ${
@@ -370,7 +407,7 @@
                       Live 916
                     </label>
                     <div className="text-lg font-black tracking-tight">
-                      RM {f2(currentGoldPrice * 0.916)}
+                      {sym} {f2(currentGoldPrice * 0.916)}
                     </div>
                   </div>
                   <div className="bg-white/5 p-3 rounded-2xl border border-white/5 relative">
@@ -378,7 +415,7 @@
                       Record High
                     </label>
                     <div className="text-lg font-black text-emerald-400 leading-none mb-1">
-                      RM {f2(highestPrice)}
+                      {sym} {f2(highestPrice)}
                     </div>
                     <div className="text-[7px] text-slate-500 font-bold uppercase leading-none mt-1">
                       Updates during sync only
@@ -401,13 +438,12 @@
                     Portfolio Summary
                   </label>
                   <div className="flex justify-between items-end border-b pb-4 border-slate-50">
-                    {/* UPDATED: REAL VALUE & TRUE PROFIT NOW SHOW 2 DECIMALS */}
                     <div>
                       <label className="text-[9px] font-bold text-slate-400 uppercase">
                         Real Value
                       </label>
                       <div className="text-xl font-black text-slate-900 leading-tight">
-                        RM {f2(totals.val)}
+                        {sym} {f2(totals.val)}
                       </div>
                     </div>
                     <div className="text-right">
@@ -421,18 +457,17 @@
                             : "text-rose-600"
                         }`}
                       >
-                        RM {f2(totals.profit)}
+                        {sym} {f2(totals.profit)}
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-between items-center mt-3 text-slate-400 italic px-1">
-                    {/* UPDATED: FORECAST VALUE & PROFIT NOW SHOW 2 DECIMALS */}
                     <div>
                       <label className="text-[9px] font-bold uppercase">
                         Forecast Value
                       </label>
                       <div className="text-sm font-black">
-                        RM {f2(totals.targetVal)}
+                        {sym} {f2(totals.targetVal)}
                       </div>
                     </div>
                     <div className="text-right">
@@ -440,7 +475,7 @@
                         Forecast Profit
                       </label>
                       <div className="text-sm font-black">
-                        RM {f2(totals.targetProfit)}
+                        {sym} {f2(totals.targetProfit)}
                       </div>
                     </div>
                   </div>
@@ -502,7 +537,7 @@
                           zakatPaid ? "text-emerald-600" : "text-rose-600"
                         }`}
                       >
-                        RM {f2(zakatValue)}
+                        {sym} {f2(zakatValue)}
                       </div>
                     </div>
                     <Icon
@@ -543,6 +578,34 @@
                   <div className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-4 mb-4">
                     <div className="p-4 bg-white rounded-2xl border text-center">
                       <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest">
+                        Vault Currency (Auto-Convert)
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCurrencyToggle("MYR")}
+                          className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${
+                            currency === "MYR"
+                              ? "bg-amber-400 text-slate-900 shadow-md"
+                              : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          MYR (RM)
+                        </button>
+                        <button
+                          onClick={() => handleCurrencyToggle("USD")}
+                          className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${
+                            currency === "USD"
+                              ? "bg-amber-400 text-slate-900 shadow-md"
+                              : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          USD ($)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-white rounded-2xl border text-center">
+                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest">
                         Zakat Management
                       </label>
                       <div className="flex gap-2">
@@ -574,24 +637,28 @@
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[9px] font-black text-slate-400 block mb-1 uppercase">
-                          Target (RM)
+                          Target ({sym})
                         </label>
                         <input
                           type="number"
                           className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
                           value={targetPrice}
-                          onChange={(e) => setTargetPrice(e.target.value)}
+                          onChange={(e) =>
+                            setTargetPrice(Number(e.target.value))
+                          }
                         />
                       </div>
                       <div>
                         <label className="text-[9px] font-black text-slate-400 block mb-1 uppercase">
-                          Spread
+                          Spread ({sym})
                         </label>
                         <input
                           type="number"
                           className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
                           value={globalStoreOffset}
-                          onChange={(e) => setGlobalStoreOffset(e.target.value)}
+                          onChange={(e) =>
+                            setGlobalStoreOffset(Number(e.target.value))
+                          }
                         />
                       </div>
                     </div>
@@ -599,7 +666,7 @@
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[9px] font-black text-rose-500 block mb-1 uppercase tracking-tighter">
-                          Initial Record High
+                          Initial Record High ({sym})
                         </label>
                         <input
                           type="number"
@@ -687,7 +754,6 @@
                   const prof =
                     (rate - globalStoreOffset) * item.weight -
                     Number(item.purchasePrice);
-
                   return (
                     <div
                       key={item.id}
@@ -713,14 +779,14 @@
                         </div>
                         <div className="text-right">
                           <div className="font-black text-base text-slate-900">
-                            RM {f2(rate * item.weight)}
+                            {sym} {f2(rate * item.weight)}
                           </div>
                           <div
                             className={`text-[10px] font-bold ${
                               prof >= 0 ? "text-emerald-600" : "text-rose-600"
                             }`}
                           >
-                            RM {f2(prof)}
+                            {sym} {f2(prof)}
                           </div>
                         </div>
                       </div>
@@ -732,15 +798,18 @@
                                 Gold Price/g
                               </label>
                               <div className="text-[11px] font-black text-center text-slate-800">
-                                RM {f2(item.goldPriceAtPurchase)}
+                                {sym} {f2(item.goldPriceAtPurchase)}
                               </div>
                             </div>
                             <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm text-rose-500">
                               <label className="text-[8px] uppercase font-bold text-slate-400 block mb-1 text-center">
-                                Making Fee
+                                Making Fee/g
                               </label>
                               <div className="text-[11px] font-black text-center">
-                                RM {f2(item.costMaking)}
+                                {sym}{" "}
+                                {f2(
+                                  Number(item.costMaking) / Number(item.weight)
+                                )}
                               </div>
                             </div>
                             <div className="bg-slate-900 p-2 rounded-xl border border-slate-900 shadow-sm text-white">
@@ -748,7 +817,7 @@
                                 Total Paid
                               </label>
                               <div className="text-[11px] font-black text-center italic">
-                                RM {f2(item.purchasePrice)}
+                                {sym} {f2(item.purchasePrice)}
                               </div>
                             </div>
                           </div>
@@ -791,7 +860,7 @@
                 <div className="bg-white w-full max-w-md rounded-t-[3rem] p-8 shadow-2xl">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="font-black text-xl uppercase tracking-tighter">
-                      Gold Entry
+                      Gold Entry ({currency})
                     </h2>
                     <button
                       onClick={() => setShowForm(false)}
@@ -833,7 +902,7 @@
                     <div className="grid grid-cols-2 gap-4">
                       <input
                         type="number"
-                        placeholder="Price/g"
+                        placeholder={`Price/g (${sym})`}
                         className="p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none"
                         value={formData.goldPriceAtPurchase}
                         onChange={(e) =>
@@ -845,7 +914,7 @@
                       />
                       <input
                         type="number"
-                        placeholder="Making Fee"
+                        placeholder={`Making Fee (${sym})`}
                         className="p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none"
                         value={formData.costMaking}
                         onChange={(e) =>
@@ -856,14 +925,12 @@
                         }
                       />
                     </div>
-
-                    {/* Preview Calculation */}
                     <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200 flex justify-between items-center">
                       <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
                         Est. Total Paid
                       </label>
                       <div className="text-lg font-black italic">
-                        RM{" "}
+                        {sym}{" "}
                         {f2(
                           (parseFloat(formData.weight) || 0) *
                             (parseFloat(formData.goldPriceAtPurchase) || 0) +
@@ -871,13 +938,14 @@
                         )}
                       </div>
                     </div>
-
                     <button
                       onClick={() => {
+                        const weightVal = parseFloat(formData.weight) || 0;
+                        const goldPriceVal =
+                          parseFloat(formData.goldPriceAtPurchase) || 0;
+                        const makingVal = parseFloat(formData.costMaking) || 0;
                         const totalPaidValue =
-                          parseFloat(formData.weight) *
-                            parseFloat(formData.goldPriceAtPurchase) +
-                          (parseFloat(formData.costMaking) || 0);
+                          weightVal * goldPriceVal + makingVal;
                         const up = editingId
                           ? items.map((i) =>
                               i.id === editingId
