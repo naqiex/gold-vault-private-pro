@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gold Vault Pro</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/lucide-static@latest/font/lucide.css"
+    />
+    <style>
+      @media print {
+        body {
+          background: white !important;
+          color: black !important;
+          padding: 0 !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .print-only {
+          display: block !important;
+        }
+        .vault-container {
+          max-width: 100% !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+        .report-header {
+          border-bottom: 3px solid #000;
+          margin-bottom: 30px;
+          padding-bottom: 10px;
+        }
+        .report-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        .report-table th {
+          text-align: left;
+          font-size: 11px;
+          text-transform: uppercase;
+          padding: 12px 8px;
+          border-bottom: 2px solid #eee;
+          background: #f9f9f9 !important;
+          -webkit-print-color-adjust: exact;
+        }
+        .report-table td {
+          padding: 12px 8px;
+          font-size: 12px;
+          border-bottom: 1px solid #eee;
+          font-weight: 600;
+        }
+      }
+      .print-only {
+        display: none;
+      }
+      @keyframes spin-once {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .sync-animate {
+        animation: spin-once 0.5s ease-in-out;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useMemo, useRef } = React;
+      const Icon = ({ name, size = 16, className = "" }) => (
+        <i
+          className={`icon-${name} ${className}`}
+          style={{ fontSize: size }}
+        ></i>
+      );
+
+      function GoldVaultPro() {
+        const [items, setItems] = useState([]);
+        const [showForm, setShowForm] = useState(false);
+        const [showSettings, setShowSettings] = useState(false);
+        const [isSyncing, setIsSyncing] = useState(false);
+        const [editingId, setEditingId] = useState(null);
+        const [expandedId, setExpandedId] = useState(null);
+        const [currentGoldPrice, setCurrentGoldPrice] = useState(390);
+        const [highestPrice, setHighestPrice] = useState(0);
+        const [targetPrice, setTargetPrice] = useState(450);
+        const [lastSyncTime, setLastSyncTime] = useState(null);
+        const [timeAgo, setTimeAgo] = useState("Never synced");
+        const [target999, setTarget999] = useState(50);
+        const [target916, setTarget916] = useState(100);
+        const [globalStoreOffset, setGlobalStoreOffset] = useState(50);
+        const [zakatEnabled, setZakatEnabled] = useState(true);
+        const [zakatPaid, setZakatPaid] = useState(false);
+
+        const fileInputRef = useRef(null);
+        const [formData, setFormData] = useState({
+          name: "",
+          type: "999",
+          weight: "",
+          purchasePrice: "",
+          costMaking: "",
+          goldPriceAtPurchase: "",
+        });
+
+        useEffect(() => {
+          const interval = setInterval(() => {
+            if (!lastSyncTime) return;
+            const diff = Math.floor(
+              (new Date() - new Date(lastSyncTime)) / 1000
+            );
+            if (diff < 10) setTimeAgo("Just now");
+            else if (diff < 60) setTimeAgo(`${diff}s ago`);
+            else setTimeAgo(`${Math.floor(diff / 60)}m ago`);
+          }, 1000);
+          return () => clearInterval(interval);
+        }, [lastSyncTime]);
+
+        useEffect(() => {
+          const saved = localStorage.getItem("gold-vault-v46");
+          if (saved) {
+            const d = JSON.parse(saved);
+            setItems(d.items || []);
+            setCurrentGoldPrice(d.currentGoldPrice || 390);
+            setHighestPrice(d.highestPrice || 0);
+            setTargetPrice(d.targetPrice || 450);
+            setTarget999(d.target999 || 50);
+            setTarget916(d.target916 || 100);
+            setGlobalStoreOffset(d.globalStoreOffset || 50);
+            setZakatEnabled(d.zakatEnabled ?? true);
+            setZakatPaid(d.zakatPaid ?? false);
+            if (d.lastSyncTime) setLastSyncTime(d.lastSyncTime);
+          }
+        }, []);
+
+        useEffect(() => {
+          localStorage.setItem(
+            "gold-vault-v46",
+            JSON.stringify({
+              items,
+              currentGoldPrice,
+              highestPrice,
+              targetPrice,
+              target999,
+              target916,
+              globalStoreOffset,
+              lastSyncTime,
+              zakatEnabled,
+              zakatPaid,
+            })
+          );
+        }, [
+          items,
+          currentGoldPrice,
+          highestPrice,
+          targetPrice,
+          target999,
+          target916,
+          globalStoreOffset,
+          lastSyncTime,
+          zakatEnabled,
+          zakatPaid,
+        ]);
+
+        const totals = useMemo(() => {
+          return items.reduce(
+            (acc, i) => {
+              const w = Number(i.weight);
+              const rate =
+                i.type === "916" ? currentGoldPrice * 0.916 : currentGoldPrice;
+              const targetRate =
+                i.type === "916" ? targetPrice * 0.916 : targetPrice;
+              acc.val += rate * w;
+              acc.targetVal += targetRate * w;
+              acc.equivWeight += i.type === "916" ? w * 0.916 : w;
+              if (i.type === "999") acc.w999 += w;
+              else acc.w916 += w;
+              acc.profit +=
+                (rate - globalStoreOffset) * w -
+                (Number(i.purchasePrice) - (Number(i.costMaking) || 0));
+              acc.targetProfit +=
+                (targetRate - globalStoreOffset) * w -
+                (Number(i.purchasePrice) - (Number(i.costMaking) || 0));
+              return acc;
+            },
+            {
+              val: 0,
+              targetVal: 0,
+              profit: 0,
+              targetProfit: 0,
+              equivWeight: 0,
+              w999: 0,
+              w916: 0,
+            }
+          );
+        }, [items, currentGoldPrice, targetPrice, globalStoreOffset]);
+
+        const fetchRates = async () => {
+          setIsSyncing(true);
+          try {
+            const [gRes, rRes] = await Promise.all([
+              fetch("https://data-asg.goldprice.org/dbXRates/USD"),
+              fetch("https://open.er-api.com/v6/latest/USD"),
+            ]);
+            const gData = await gRes.json();
+            const rData = await rRes.json();
+            const pricePerGramMYR =
+              (gData.items[0].xauPrice / 31.1035) * rData.rates.MYR;
+            const newPrice = Math.round(pricePerGramMYR * 100) / 100;
+            if (highestPrice === 0 || newPrice > highestPrice)
+              setHighestPrice(newPrice);
+            setCurrentGoldPrice(newPrice);
+            setLastSyncTime(new Date().toISOString());
+          } catch (e) {
+            alert("Sync failed.");
+          }
+          setTimeout(() => setIsSyncing(false), 600);
+        };
+
+        const zakatValue =
+          zakatEnabled && totals.equivWeight >= 85 ? totals.val * 0.025 : 0;
+
+        const handleDuplicate = (item) => {
+          const newItem = {
+            ...item,
+            id: Date.now(),
+            name: `${item.name} (Copy)`,
+          };
+          setItems([newItem, ...items]);
+        };
+
+        return (
+          <div className="max-w-md mx-auto min-h-screen pb-10 vault-container">
+            {/* PDF REPORT */}
+            <div className="print-only p-10 bg-white">
+              <div className="report-header">
+                <h1 className="text-4xl font-black uppercase">
+                  Gold Vault Statement
+                </h1>
+                <p className="text-sm font-bold text-slate-500 mt-2">
+                  DATE: {new Date().toLocaleString()}
+                </p>
+              </div>
+              <table className="report-table mt-8 w-full text-left">
+                <thead>
+                  <tr className="border-b-2 border-slate-900">
+                    <th>Asset</th>
+                    <th>Purity</th>
+                    <th>Weight</th>
+                    <th>Market Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id} className="border-b border-slate-100">
+                      <td className="py-4 font-bold uppercase">{item.name}</td>
+                      <td>{item.type}</td>
+                      <td>{item.weight}g</td>
+                      <td>
+                        RM{" "}
+                        {(
+                          (item.type === "916"
+                            ? currentGoldPrice * 0.916
+                            : currentGoldPrice) * item.weight
+                        ).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* APP UI */}
+            <div className="no-print">
+              <div className="bg-slate-900 text-white p-5 pb-24 rounded-b-[2.5rem] shadow-lg">
+                <div className="flex justify-between items-center mb-6 text-slate-400 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-bold uppercase tracking-widest">
+                      <Icon name="clock" size={10} /> {timeAgo}
+                    </span>
+                    <button
+                      onClick={fetchRates}
+                      className={`p-1 rounded-full bg-white/5 ${
+                        isSyncing ? "sync-animate" : ""
+                      }`}
+                    >
+                      <Icon name="refresh-cw" size={10} />
+                    </button>
+                  </div>
+                  <h1 className="font-black text-lg uppercase italic tracking-tighter">
+                    Gold Vault <span className="text-amber-400">PRO</span>
+                  </h1>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
+                      Live 999
+                    </label>
+                    <div className="text-lg font-black tracking-tight">
+                      RM {currentGoldPrice}
+                    </div>
+                  </div>
+                  <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
+                      Live 916
+                    </label>
+                    <div className="text-lg font-black tracking-tight">
+                      RM {(currentGoldPrice * 0.916).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="bg-white/5 p-3 rounded-2xl border border-white/5 relative">
+                    <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
+                      Record High
+                    </label>
+                    <div className="text-lg font-black text-emerald-400 leading-none mb-1">
+                      RM {highestPrice}
+                    </div>
+                    <div className="text-[7px] text-slate-500 font-bold uppercase leading-none mt-1">
+                      Updates during sync only
+                    </div>
+                  </div>
+                  <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
+                      Goal Rank
+                    </label>
+                    <div className="text-lg font-black text-amber-400 italic">
+                      {((currentGoldPrice / targetPrice) * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white mx-4 -mt-16 rounded-[2.5rem] p-6 shadow-2xl border border-slate-100 relative z-10">
+                <div className="mb-6">
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block tracking-widest text-center mb-1">
+                    Portfolio Summary
+                  </label>
+                  <div className="flex justify-between items-end border-b pb-4 border-slate-50">
+                    <div>
+                      <label className="text-[9px] font-bold text-slate-400 uppercase">
+                        Real Value
+                      </label>
+                      <div className="text-2xl font-black text-slate-900 leading-tight">
+                        RM {totals.val.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase">
+                        Real Profit
+                      </label>
+                      <div
+                        className={`text-xl font-black leading-tight ${
+                          totals.profit >= 0
+                            ? "text-emerald-600"
+                            : "text-rose-600"
+                        }`}
+                      >
+                        RM {totals.profit.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center mt-3 text-slate-400 italic px-1">
+                    <div>
+                      <label className="text-[9px] font-bold uppercase">
+                        Forecast Value
+                      </label>
+                      <div className="text-sm font-black">
+                        RM {totals.targetVal.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <label className="text-[9px] font-bold uppercase">
+                        Forecast Profit
+                      </label>
+                      <div className="text-sm font-black">
+                        RM {totals.targetProfit.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <div className="flex justify-between text-[9px] font-black mb-1 uppercase text-slate-500">
+                      <span>999 Target</span>
+                      <span>
+                        {totals.w999.toFixed(2)}g / {target999}g
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full">
+                      <div
+                        className="h-full bg-amber-400 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (totals.w999 / target999) * 100,
+                            100
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[9px] font-black mb-1 uppercase text-slate-500">
+                      <span>916 Target</span>
+                      <span>
+                        {totals.w916.toFixed(2)}g / {target916}g
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full">
+                      <div
+                        className="h-full bg-orange-400 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (totals.w916 / target916) * 100,
+                            100
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                {zakatValue > 0 && (
+                  <div
+                    className={`${
+                      zakatPaid ? "bg-emerald-50" : "bg-rose-50 animate-pulse"
+                    } border p-4 rounded-2xl mb-6 flex justify-between items-center`}
+                  >
+                    <div>
+                      <div className="text-[9px] font-black uppercase mb-1">
+                        Zakat Requirement
+                      </div>
+                      <div
+                        className={`text-lg font-black ${
+                          zakatPaid ? "text-emerald-600" : "text-rose-600"
+                        }`}
+                      >
+                        RM {zakatValue.toLocaleString()}
+                      </div>
+                    </div>
+                    <Icon
+                      name={zakatPaid ? "check-circle" : "alert-circle"}
+                      size={20}
+                      className={
+                        zakatPaid ? "text-emerald-400" : "text-rose-300"
+                      }
+                    />
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    setEditingId(null);
+                    setFormData({
+                      name: "",
+                      type: "999",
+                      weight: "",
+                      purchasePrice: "",
+                      costMaking: "",
+                      goldPriceAtPurchase: "",
+                    });
+                    setShowForm(true);
+                  }}
+                  className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 text-sm uppercase mb-4 shadow-xl active:scale-95"
+                >
+                  <Icon name="plus-circle" size={18} /> New Entry
+                </button>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="w-full text-slate-400 text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-widest mb-4"
+                >
+                  <Icon name="settings" size={12} /> Settings & Reports
+                </button>
+
+                {showSettings && (
+                  <div className="p-5 bg-slate-50 rounded-3xl border border-slate-200 space-y-4 mb-4">
+                    <div className="p-4 bg-white rounded-2xl border text-center">
+                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest">
+                        Zakat Management
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setZakatEnabled(!zakatEnabled)}
+                          className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase ${
+                            zakatEnabled
+                              ? "bg-slate-900 text-white"
+                              : "bg-slate-200 text-slate-400"
+                          }`}
+                        >
+                          {zakatEnabled ? "Active" : "Hidden"}
+                        </button>
+                        {zakatEnabled && (
+                          <button
+                            onClick={() => setZakatPaid(!zakatPaid)}
+                            className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase ${
+                              zakatPaid
+                                ? "bg-emerald-500 text-white"
+                                : "bg-slate-200 text-slate-400"
+                            }`}
+                          >
+                            {zakatPaid ? "Paid" : "Due"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 block mb-1 uppercase">
+                          Target (RM)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
+                          value={targetPrice}
+                          onChange={(e) => setTargetPrice(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 block mb-1 uppercase">
+                          Spread
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
+                          value={globalStoreOffset}
+                          onChange={(e) => setGlobalStoreOffset(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 block mb-1 uppercase">
+                          Goal 999 (g)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
+                          value={target999}
+                          onChange={(e) => setTarget999(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 block mb-1 uppercase">
+                          Goal 916 (g)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
+                          value={target916}
+                          onChange={(e) => setTarget916(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={fetchRates}
+                        className="bg-white border p-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <Icon name="refresh-cw" size={12} /> Sync Rates
+                      </button>
+                      <button
+                        onClick={() => window.print()}
+                        className="bg-indigo-600 text-white p-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1 shadow-md"
+                      >
+                        <Icon name="file-down" size={12} /> PDF Report
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob(
+                            [localStorage.getItem("gold-vault-v46")],
+                            { type: "application/json" }
+                          );
+                          const a = document.createElement("a");
+                          a.href = URL.createObjectURL(blob);
+                          a.download = "vault_backup.json";
+                          a.click();
+                        }}
+                        className="bg-white border p-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <Icon name="download" size={12} /> Export
+                      </button>
+                      <button
+                        onClick={() => fileInputRef.current.click()}
+                        className="bg-white border p-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <Icon name="upload" size={12} /> Import
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={(e) => {
+                          const r = new FileReader();
+                          r.onload = (ev) => {
+                            setItems(JSON.parse(ev.target.result).items || []);
+                          };
+                          r.readAsText(e.target.files[0]);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ADS / AFFILIATE SPACE */}
+                <div className="bg-slate-100 rounded-2xl p-4 text-center border-2 border-dashed border-slate-200">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">
+                    Recommended Partner
+                  </p>
+                  <a
+                    href="#"
+                    className="text-xs font-bold text-indigo-600 underline italic"
+                  >
+                    Explore Gold Bullion Deals &rarr;
+                  </a>
+                </div>
+              </div>
+
+              <div className="px-4 mt-8 space-y-3 pb-10">
+                <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">
+                  Vault Inventory
+                </h3>
+                {items.map((item) => {
+                  const rate =
+                    item.type === "916"
+                      ? currentGoldPrice * 0.916
+                      : currentGoldPrice;
+                  const prof =
+                    (rate - globalStoreOffset) * item.weight -
+                    (item.purchasePrice - (item.costMaking || 0));
+                  return (
+                    <div
+                      key={item.id}
+                      className={`border rounded-[1.75rem] shadow-sm overflow-hidden transition-all ${
+                        prof >= 0
+                          ? "bg-emerald-50/60 border-emerald-100"
+                          : "bg-rose-50/60 border-rose-100"
+                      }`}
+                    >
+                      <div
+                        onClick={() =>
+                          setExpandedId(expandedId === item.id ? null : item.id)
+                        }
+                        className="p-5 flex justify-between items-center cursor-pointer"
+                      >
+                        <div>
+                          <div className="font-black text-slate-800 uppercase text-[11px] mb-1">
+                            {item.name}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400">
+                            {item.weight}g · {item.type}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-black text-base text-slate-900">
+                            RM {(rate * item.weight).toFixed(0)}
+                          </div>
+                          <div
+                            className={`text-[10px] font-bold ${
+                              prof >= 0 ? "text-emerald-600" : "text-rose-600"
+                            }`}
+                          >
+                            RM {prof.toFixed(0)}
+                          </div>
+                        </div>
+                      </div>
+                      {expandedId === item.id && (
+                        <div className="p-4 pt-0 border-t border-black/5 flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingId(item.id);
+                              setFormData(item);
+                              setShowForm(true);
+                            }}
+                            className="flex-1 bg-white border py-2 rounded-xl text-[10px] font-black uppercase shadow-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(item)}
+                            className="flex-1 bg-white border py-2 rounded-xl text-[10px] font-black uppercase shadow-sm"
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            onClick={() =>
+                              setItems(items.filter((i) => i.id !== item.id))
+                            }
+                            className="flex-1 bg-rose-50 text-rose-600 border border-rose-200 py-2 rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {showForm && (
+              <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-end sm:items-center justify-center p-0 backdrop-blur-sm">
+                <div className="bg-white w-full max-w-md rounded-t-[3rem] p-8 shadow-2xl">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="font-black text-xl uppercase tracking-tighter">
+                      Gold Entry
+                    </h2>
+                    <button
+                      onClick={() => setShowForm(false)}
+                      className="bg-slate-100 p-2 rounded-full"
+                    >
+                      <Icon name="x" size={20} />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <input
+                      className="w-full p-4 bg-slate-50 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200 outline-none"
+                      placeholder="Asset Name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <select
+                        className="p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none"
+                        value={formData.type}
+                        onChange={(e) =>
+                          setFormData({ ...formData, type: e.target.value })
+                        }
+                      >
+                        <option value="999">999 (24K)</option>
+                        <option value="916">916 (22K)</option>
+                      </select>
+                      <input
+                        type="number"
+                        placeholder="Weight (g)"
+                        className="p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none"
+                        value={formData.weight}
+                        onChange={(e) =>
+                          setFormData({ ...formData, weight: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input
+                        type="number"
+                        placeholder="Price/g"
+                        className="p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none"
+                        value={formData.goldPriceAtPurchase}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            goldPriceAtPurchase: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="number"
+                        placeholder="Making Fee"
+                        className="p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none"
+                        value={formData.costMaking}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            costMaking: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const total =
+                          parseFloat(formData.weight) *
+                            parseFloat(formData.goldPriceAtPurchase) +
+                          (parseFloat(formData.costMaking) || 0);
+                        const up = editingId
+                          ? items.map((i) =>
+                              i.id === editingId
+                                ? { ...formData, purchasePrice: total }
+                                : i
+                            )
+                          : [
+                              {
+                                ...formData,
+                                id: Date.now(),
+                                purchasePrice: total,
+                              },
+                              ...items,
+                            ];
+                        setItems(up);
+                        setShowForm(false);
+                      }}
+                      className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl uppercase active:scale-95 shadow-xl"
+                    >
+                      Confirm Entry
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<GoldVaultPro />);
+    </script>
+  </body>
+</html>
