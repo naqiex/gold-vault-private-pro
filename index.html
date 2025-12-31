@@ -17,7 +17,7 @@
         body {
           background: white !important;
           color: black !important;
-          padding: 0 !important;
+          padding: 40px !important;
         }
         .no-print {
           display: none !important;
@@ -31,30 +31,62 @@
           box-shadow: none !important;
           border: none !important;
         }
+
         .report-header {
-          border-bottom: 3px solid #000;
           margin-bottom: 30px;
-          padding-bottom: 10px;
         }
+        .report-title {
+          font-size: 24px;
+          font-weight: 800;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+        .report-date {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 20px;
+        }
+        .report-divider {
+          border-top: 1px solid #000;
+          margin-bottom: 30px;
+        }
+
         .report-table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 20px;
         }
         .report-table th {
           text-align: left;
-          font-size: 11px;
+          font-size: 10px;
           text-transform: uppercase;
-          padding: 12px 8px;
-          border-bottom: 2px solid #eee;
-          background: #f9f9f9 !important;
-          -webkit-print-color-adjust: exact;
+          padding: 12px 0;
+          border-bottom: none;
+          color: #000;
+          font-weight: 800;
         }
         .report-table td {
-          padding: 12px 8px;
-          font-size: 12px;
-          border-bottom: 1px solid #eee;
-          font-weight: 600;
+          padding: 12px 0;
+          font-size: 13px;
+          font-weight: 500;
+          border-bottom: none;
+        }
+
+        .zakat-report-section {
+          margin-top: 60px;
+        }
+        .zakat-title {
+          font-size: 18px;
+          font-weight: 800;
+          margin-bottom: 10px;
+        }
+        .zakat-weight {
+          font-size: 14px;
+          margin-bottom: 10px;
+          font-weight: 500;
+        }
+        .zakat-payable {
+          font-size: 18px;
+          font-weight: 800;
         }
       }
       .print-only {
@@ -318,6 +350,58 @@
 
         return (
           <div className="max-w-md mx-auto min-h-screen pb-10 vault-container">
+            <div className="print-only">
+              <div className="report-header">
+                <div className="report-title">Gold Vault Inventory Report</div>
+                <div className="report-date">
+                  Generated: {new Date().toLocaleString()}
+                </div>
+              </div>
+              <div className="report-divider"></div>
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "40%" }}>Asset</th>
+                    <th style={{ width: "15%" }}>Purity</th>
+                    <th style={{ width: "15%" }}>Weight</th>
+                    <th style={{ width: "15%" }}>Cost</th>
+                    <th style={{ width: "15%" }}>Market Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td style={{ textTransform: "uppercase" }}>
+                        {item.name}
+                      </td>
+                      <td>{item.type}</td>
+                      <td>{item.weight}g</td>
+                      <td>
+                        {currency} {item.purchasePrice}
+                      </td>
+                      <td>
+                        {currency}{" "}
+                        {f2(
+                          (item.type === "916"
+                            ? currentGoldPrice * 0.916
+                            : currentGoldPrice) * item.weight
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="zakat-report-section">
+                <div className="zakat-title">Zakat Declaration (2025)</div>
+                <div className="zakat-weight">
+                  999-Equivalent Weight: {totals.equivWeight.toFixed(2)}g
+                </div>
+                <div className="zakat-payable">
+                  Zakat Payable: {currency} {f2(zakatValue)}
+                </div>
+              </div>
+            </div>
+
             <div className="no-print">
               <div className="bg-slate-900 text-white p-5 pb-24 rounded-b-[2.5rem] shadow-lg">
                 <div className="flex justify-between items-center mb-6 text-slate-400 px-1">
