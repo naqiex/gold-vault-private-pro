@@ -91,6 +91,7 @@
         const [showSettings, setShowSettings] = useState(false);
         const [showPortfolio, setShowPortfolio] = useState(false);
         const [showInventory, setShowInventory] = useState(false);
+        const [showMarket, setShowMarket] = useState(false);
 
         const [isSyncing, setIsSyncing] = useState(false);
         const [editingId, setEditingId] = useState(null);
@@ -124,6 +125,8 @@
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           });
+        const r2 = (val) =>
+          Math.round((Number(val) + Number.EPSILON) * 100) / 100;
 
         const fetchRates = async () => {
           setIsSyncing(true);
@@ -138,7 +141,7 @@
             const myrRate = rData.rates.MYR;
             const newPrice =
               currency === "MYR" ? pricePerGramUSD * myrRate : pricePerGramUSD;
-            const roundedPrice = Math.round(newPrice * 100) / 100;
+            const roundedPrice = r2(newPrice);
             setCurrentGoldPrice(roundedPrice);
             setLastSyncTime(new Date().toISOString());
             setHighestPrice((prev) =>
@@ -156,11 +159,11 @@
             const d = JSON.parse(saved);
             setItems(d.items || []);
             setCurrency(d.currency || "MYR");
-            setHighestPrice(d.highestPrice || 0);
-            setTargetPrice(d.targetPrice || 450);
+            setHighestPrice(r2(d.highestPrice) || 0);
+            setTargetPrice(r2(d.targetPrice) || 450);
             setTarget999(d.target999 || 50);
             setTarget916(d.target916 || 100);
-            setGlobalStoreOffset(d.globalStoreOffset || 50);
+            setGlobalStoreOffset(r2(d.globalStoreOffset) || 50);
             setZakatEnabled(d.zakatEnabled ?? true);
             setZakatPaid(d.zakatPaid ?? false);
             if (d.lastSyncTime) setLastSyncTime(d.lastSyncTime);
@@ -254,16 +257,18 @@
             const data = await res.json();
             const myrRate = data.rates.MYR;
             const factor = newCurrency === "MYR" ? myrRate : 1 / myrRate;
-            setCurrentGoldPrice((prev) => prev * factor);
-            setHighestPrice((prev) => prev * factor);
-            setTargetPrice((prev) => prev * factor);
-            setGlobalStoreOffset((prev) => prev * factor);
+            setCurrentGoldPrice((prev) => r2(prev * factor));
+            setHighestPrice((prev) => r2(prev * factor));
+            setTargetPrice((prev) => r2(prev * factor));
+            setGlobalStoreOffset((prev) => r2(prev * factor));
             setItems(
               items.map((item) => ({
                 ...item,
-                purchasePrice: Number(item.purchasePrice) * factor,
-                costMaking: Number(item.costMaking) * factor,
-                goldPriceAtPurchase: Number(item.goldPriceAtPurchase) * factor,
+                purchasePrice: r2(Number(item.purchasePrice) * factor),
+                costMaking: r2(Number(item.costMaking) * factor),
+                goldPriceAtPurchase: r2(
+                  Number(item.goldPriceAtPurchase) * factor
+                ),
               }))
             );
             setCurrency(newCurrency);
@@ -314,7 +319,6 @@
         return (
           <div className="max-w-md mx-auto min-h-screen pb-10 vault-container">
             <div className="no-print">
-              {/* 1. Header with Live Rates */}
               <div className="bg-slate-900 text-white p-5 pb-24 rounded-b-[2.5rem] shadow-lg">
                 <div className="flex justify-between items-center mb-6 text-slate-400 px-1">
                   <div className="flex items-center gap-2">
@@ -365,9 +369,12 @@
                     <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
                       Record High
                     </label>
-                    <div className="text-lg font-black text-emerald-400 leading-none mb-1">
+                    <div className="text-lg font-black text-emerald-400 leading-none mb-0.5">
                       {sym} {f2(highestPrice)}
                     </div>
+                    <p className="text-[6px] text-slate-400 font-bold uppercase italic tracking-tighter">
+                      Record during sync only.
+                    </p>
                   </div>
                   <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                     <label className="text-[8px] uppercase font-bold text-slate-500 block mb-0.5">
@@ -380,7 +387,6 @@
                 </div>
               </div>
 
-              {/* 2. Portfolio Summary Card */}
               <div className="bg-white mx-4 -mt-16 rounded-[2.5rem] p-6 shadow-2xl border border-slate-100 relative z-10">
                 <button
                   onClick={() => setShowPortfolio(!showPortfolio)}
@@ -396,7 +402,7 @@
                   />
                 </button>
 
-                {showPortfolio ? (
+                {showPortfolio && (
                   <div className="pt-4 border-t border-slate-50 mt-2">
                     <div className="flex justify-between items-end border-b pb-4 border-slate-50">
                       <div>
@@ -526,8 +532,6 @@
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="h-2"></div>
                 )}
 
                 <button
@@ -619,11 +623,10 @@
                         </label>
                         <input
                           type="number"
+                          step="0.01"
                           className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
-                          value={targetPrice}
-                          onChange={(e) =>
-                            setTargetPrice(Number(e.target.value))
-                          }
+                          value={r2(targetPrice)}
+                          onChange={(e) => setTargetPrice(r2(e.target.value))}
                         />
                       </div>
                       <div>
@@ -632,10 +635,11 @@
                         </label>
                         <input
                           type="number"
+                          step="0.01"
                           className="w-full p-2.5 bg-white border rounded-xl text-sm font-bold"
-                          value={globalStoreOffset}
+                          value={r2(globalStoreOffset)}
                           onChange={(e) =>
-                            setGlobalStoreOffset(Number(e.target.value))
+                            setGlobalStoreOffset(r2(e.target.value))
                           }
                         />
                       </div>
@@ -647,11 +651,10 @@
                         </label>
                         <input
                           type="number"
+                          step="0.01"
                           className="w-full p-2.5 bg-white border border-rose-100 rounded-xl text-sm font-bold"
-                          value={highestPrice}
-                          onChange={(e) =>
-                            setHighestPrice(Number(e.target.value))
-                          }
+                          value={r2(highestPrice)}
+                          onChange={(e) => setHighestPrice(r2(e.target.value))}
                         />
                       </div>
                       <div>
@@ -713,7 +716,6 @@
                 )}
               </div>
 
-              {/* 4. Vault Inventory Card */}
               <div className="bg-white mx-4 mt-6 rounded-[2.5rem] p-6 shadow-xl border border-slate-100 mb-6">
                 <button
                   onClick={() => setShowInventory(!showInventory)}
@@ -728,7 +730,6 @@
                     className="text-slate-300 absolute right-1"
                   />
                 </button>
-
                 {showInventory && (
                   <div className="mt-4 space-y-3">
                     {items.length === 0 && (
@@ -822,7 +823,7 @@
                                     {sym}{" "}
                                     {costViewMode === "perGram"
                                       ? f2(
-                                          Number(item.costMaking) /
+                                          Number(item.costmaking) /
                                             Number(item.weight)
                                         )
                                       : f2(item.costMaking)}
@@ -881,24 +882,31 @@
                 )}
               </div>
 
-              {/* 5. MARKET HISTORY (UPDATED SOURCE: FX_IDC:XAUUSDG) */}
-              <div className="bg-white mx-4 mt-4 rounded-[2.5rem] p-1 shadow-xl border border-slate-100 overflow-hidden">
-                <div className="p-5 pb-2 text-center">
-                  <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                    Market History (XAU/USD Gram)
+              <div className="bg-white mx-4 mt-4 rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden mb-10">
+                <button
+                  onClick={() => setShowMarket(!showMarket)}
+                  className="w-full p-6 flex flex-col justify-center items-center bg-white group"
+                >
+                  <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest group-hover:text-slate-600 mb-1">
+                    Market History (Chart)
                   </h3>
-                </div>
-                <div className="w-full h-[300px] rounded-b-[2rem] overflow-hidden">
-                  <iframe
-                    src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76d4d&symbol=FX_IDC%3AXAUUSDG&interval=D&hidesidetoolbar=1&hidetoptoolbar=1&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=light&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=en&utm_source=goldvaultpro&utm_medium=widget&utm_campaign=chart&utm_term=FX_IDC%3AXAUUSDG"
-                    style={{ width: "100%", height: "100%", border: "none" }}
-                    title="Gold Price Gram Chart"
-                  ></iframe>
-                </div>
+                  <Icon
+                    name={showMarket ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    className="text-slate-300"
+                  />
+                </button>
+                {showMarket && (
+                  <div className="w-full h-[300px] border-t border-slate-50">
+                    <iframe
+                      src="https://s.tradingview.com/widgetembed/?symbol=FX_IDC%3AXAUUSDG&interval=D&hidesidetoolbar=1&theme=light"
+                      style={{ width: "100%", height: "100%", border: "none" }}
+                    ></iframe>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* 6. Entry Form Overlay */}
             {showForm && (
               <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-end sm:items-center justify-center p-0 backdrop-blur-sm">
                 <div className="bg-white w-full max-w-md rounded-t-[3rem] p-8 shadow-2xl">
@@ -924,7 +932,7 @@
                     />
                     <div className="grid grid-cols-2 gap-4">
                       <select
-                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm"
+                        className="p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm"
                         value={formData.type}
                         onChange={(e) =>
                           setFormData({ ...formData, type: e.target.value })
@@ -935,7 +943,7 @@
                       </select>
                       <input
                         type="number"
-                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm"
+                        className="p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm"
                         placeholder="Weight (g)"
                         value={formData.weight}
                         onChange={(e) =>
@@ -944,62 +952,75 @@
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="number"
-                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm"
-                        placeholder="Gold Price/g"
-                        value={formData.goldPriceAtPurchase}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            goldPriceAtPurchase: e.target.value,
-                          })
-                        }
-                      />
-                      <input
-                        type="number"
-                        className="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm"
-                        placeholder="Making Fee"
-                        value={formData.costMaking}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            costMaking: e.target.value,
-                          })
-                        }
-                      />
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 ml-2 mb-1 block">
+                          GOLD PRICE/G
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-4 bg-slate-50 rounded-2xl font-black text-sm"
+                          value={formData.goldPriceAtPurchase}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              goldPriceAtPurchase: r2(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 ml-2 mb-1 block">
+                          FEE MAKING
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-4 bg-slate-50 rounded-2xl font-black text-sm"
+                          value={formData.costMaking}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              costMaking: r2(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
                     </div>
-                    <input
-                      type="number"
-                      className="w-full p-4 bg-slate-900 text-amber-400 rounded-2xl font-black outline-none text-center text-lg"
-                      placeholder="Total Paid"
-                      value={formData.purchasePrice}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          purchasePrice: e.target.value,
-                        })
-                      }
-                    />
-
+                    <div className="p-4 bg-slate-900 rounded-2xl text-center">
+                      <label className="text-[9px] font-black text-slate-500 block mb-1">
+                        AUTO-CALCULATED TOTAL
+                      </label>
+                      <div className="text-xl font-black text-amber-400 italic">
+                        {sym}{" "}
+                        {f2(
+                          Number(formData.goldPriceAtPurchase) *
+                            Number(formData.weight) +
+                            Number(formData.costMaking)
+                        )}
+                      </div>
+                    </div>
                     <button
                       onClick={() => {
-                        const finalItem = {
+                        const finalPrice =
+                          Number(formData.goldPriceAtPurchase) *
+                            Number(formData.weight) +
+                          Number(formData.costMaking);
+                        const entry = {
                           ...formData,
+                          purchasePrice: r2(finalPrice),
                           id: editingId || Date.now(),
                         };
                         if (editingId)
                           setItems(
-                            items.map((i) =>
-                              i.id === editingId ? finalItem : i
-                            )
+                            items.map((i) => (i.id === editingId ? entry : i))
                           );
-                        else setItems([finalItem, ...items]);
+                        else setItems([entry, ...items]);
                         setShowForm(false);
                       }}
                       className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl uppercase shadow-xl"
                     >
-                      {editingId ? "Update" : "Save"} Entry
+                      Save Asset
                     </button>
                   </div>
                 </div>
