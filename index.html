@@ -1,9 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-Y5WGXRFP8K"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-Y5WGXRFP8K");
+    </script>
+
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gold Vault Pro v1.0</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <title>Gold Vault Pro - Smart Gold Portfolio & Zakat Tracker</title>
+    <meta
+      name="description"
+      content="Track your 999 and 916 gold investments with live market rates. Automated Zakat calculator, profit/loss tracking, and professional inventory reports."
+    />
+    <meta
+      name="keywords"
+      content="gold tracker, live gold price MYR, zakat calculator gold, gold investment app, 916 gold price, track gold portfolio"
+    />
+    <meta name="author" content="Gold Vault Pro" />
+
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Gold Vault Pro - Live Gold & Zakat Tracker"
+    />
+    <meta
+      property="og:description"
+      content="Professional gold portfolio management with real-time price syncing and Zakat automation."
+    />
+    <meta
+      property="og:image"
+      content="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1000"
+    />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="format-detection" content="telephone=no" />
+
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -12,6 +60,7 @@
       rel="stylesheet"
       href="https://unpkg.com/lucide-static@latest/font/lucide.css"
     />
+
     <style>
       @media print {
         body {
@@ -31,7 +80,6 @@
           box-shadow: none !important;
           border: none !important;
         }
-
         .report-header {
           margin-bottom: 30px;
         }
@@ -50,7 +98,6 @@
           border-top: 1px solid #000;
           margin-bottom: 30px;
         }
-
         .report-table {
           width: 100%;
           border-collapse: collapse;
@@ -70,7 +117,6 @@
           font-weight: 500;
           border-bottom: none;
         }
-
         .zakat-report-section {
           margin-top: 60px;
         }
@@ -102,6 +148,14 @@
       }
       .sync-animate {
         animation: spin-once 0.5s ease-in-out;
+      }
+
+      /* Smooth UI Tweaks */
+      body {
+        -webkit-tap-highlight-color: transparent;
+      }
+      input[type="date"] {
+        min-height: 1.5rem;
       }
     </style>
   </head>
