@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="icon" type="image/svg+xml" href="icon.svg">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0F172A">
+    <link rel="icon" type="image/svg+xml" href="icon.svg" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0F172A" />
 
     <script>
       // Register Service Worker for PWA
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js');
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js");
         });
       }
     </script>
@@ -443,9 +443,7 @@
             {/* PDF REPORT */}
             <div className="print-only">
               <div className="report-header">
-                <div className="report-title">
-                  Gold Vault Inventory Report (v1.0)
-                </div>
+                <div className="report-title">Gold Vault Inventory Report</div>
                 <div className="report-date">
                   Generated: {new Date().toLocaleString()}
                 </div>
@@ -515,7 +513,7 @@
                     </button>
                   </div>
                   <h1 className="font-black text-lg uppercase italic tracking-tighter">
-                    Gold Vault <span className="text-amber-400">v1.0</span>
+                    Gold Vault <span className="text-amber-400">PRO</span>
                   </h1>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-center">
@@ -608,7 +606,25 @@
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-4 my-6">
+                    <div className="flex justify-between items-center mt-3 text-slate-400 italic px-1 mb-6">
+                      <div>
+                        <label className="text-[9px] font-bold uppercase">
+                          Forecast Value
+                        </label>
+                        <div className="text-sm font-black">
+                          {sym} {f2(totals.targetVal)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <label className="text-[9px] font-bold uppercase">
+                          Forecast Profit
+                        </label>
+                        <div className="text-sm font-black">
+                          {sym} {f2(totals.targetProfit)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4 mb-6">
                       <div>
                         <div className="flex justify-between text-[9px] font-black mb-1 uppercase text-slate-500">
                           <span>999 Target</span>
@@ -1206,4 +1222,3 @@
     </script>
   </body>
 </html>
-
