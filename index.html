@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0F172A">
+
+    <script>
+      // Register Service Worker for PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js');
+        });
+      }
+    </script>
     <script
       async
       src="https://www.googletagmanager.com/gtag/js?id=G-Y5WGXRFP8K"
@@ -1194,3 +1206,4 @@
     </script>
   </body>
 </html>
+
