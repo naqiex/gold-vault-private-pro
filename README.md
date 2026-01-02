@@ -1,4 +1,4 @@
-# 🔱 Gold Vault Pro v1.0
+# 🔱 Gold Vault v1.0
 
 ![Gold Vault Pro]
 
@@ -7,7 +7,7 @@
 ---
 
 ## 🚀 Live Demo
-**[Click here to open Gold Vault Pro]([https://naqiex.github.io/gold-vault/])**
+**[Click here to open Gold Vault Pro](https://naqiex.github.io/gold-vault/)**
 
 ---
 
