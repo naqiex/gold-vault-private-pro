@@ -281,17 +281,35 @@
 
         const handleFormChange = (field, value) => {
           let nextData = { ...formData, [field]: value };
+
           const p = Number(nextData.goldPriceAtPurchase) || 0;
           const w = Number(nextData.weight) || 0;
-          const base = p * w;
+          const f = Number(nextData.costMaking) || 0;
+          const t = Number(nextData.totalPaid) || 0;
 
+          // Direction 1: Fee (costMaking) changed -> Update Total Paid
           if (field === "costMaking") {
-            nextData.totalPaid = r2(base + Number(value));
-          } else if (field === "totalPaid") {
-            nextData.costMaking = r2(Number(value) - base);
-          } else if (field === "goldPriceAtPurchase" || field === "weight") {
-            nextData.totalPaid = r2(base + (Number(nextData.costMaking) || 0));
+            nextData.totalPaid = r2(p * w + Number(value));
           }
+
+          // Direction 2: Gold Price/g changed -> Update Total Paid
+          else if (field === "goldPriceAtPurchase") {
+            nextData.totalPaid = r2(Number(value) * w + f);
+          }
+
+          // Direction 3: Total Paid changed -> Update Gold/g (New Requested Logic)
+          else if (field === "totalPaid") {
+            if (w > 0) {
+              // Formula: (Total - Fee) / Weight
+              nextData.goldPriceAtPurchase = r2((Number(value) - f) / w);
+            }
+          }
+
+          // Helper: If weight changes, usually we update the Total Paid
+          else if (field === "weight") {
+            nextData.totalPaid = r2(p * Number(value) + f);
+          }
+
           setFormData(nextData);
         };
 
@@ -1254,4 +1272,3 @@
     </script>
   </body>
 </html>
-
