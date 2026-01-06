@@ -197,14 +197,14 @@
         const [costViewMode, setCostViewMode] = useState("perGram");
 
         const [currency, setCurrency] = useState("MYR");
-        const [currentGoldPrice, setCurrentGoldPrice] = useState(390);
+        const [currentGoldPrice, setCurrentGoldPrice] = useState(550);
         const [highestPrice, setHighestPrice] = useState(0);
-        const [targetPrice, setTargetPrice] = useState(450);
+        const [targetPrice, setTargetPrice] = useState(650);
         const [lastSyncTime, setLastSyncTime] = useState(null);
         const [timeAgo, setTimeAgo] = useState("Syncing...");
         const [target999, setTarget999] = useState(50);
         const [target916, setTarget916] = useState(100);
-        const [globalStoreOffset, setGlobalStoreOffset] = useState(50);
+        const [globalStoreOffset, setGlobalStoreOffset] = useState(0.1);
         const [zakatEnabled, setZakatEnabled] = useState(true);
         const [zakatPaid, setZakatPaid] = useState(false);
 
@@ -1272,3 +1272,4 @@
     </script>
   </body>
 </html>
+
